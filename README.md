@@ -11,6 +11,13 @@ root@DESKTOP-4N2JHAU ~/a/analysisproj (master)# tree -L 2 -a
 .env File
 ```
 OPENAI_API_KEY=sk-*************
+
+Install code LLAMA3-8B
+```
+./llama-server --port 9090 --hf-repo hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF --hf-file llama-3.2-3b-instruct-q4_k_m.gguf -c
+ 4096 --n-gpu-layers 28
+```
+
 Custom Configuration
 In your Rust project, configure the following constants for folder analysis and code summary generation:
 ```
