@@ -1,64 +1,61 @@
-Setting up OpenAI API Key for Folder Analysis Project
-To configure your OpenAI API key and run the folder analysis project, follow the steps below.
+# QPR — Quick Project Report
 
-Environment Setup
-# Set the OpenAI API Key in the .env file
-```
-root@DESKTOP-4N2JHAU ~/a/analysisproj (master)# tree -L 2 -a
-.
-├── .env
-```
-.env File
-```
-OPENAI_API_KEY=sk-*************
+Point it at a source folder and it produces a browsable HTML report explaining
+what the code does, using an LLM. It is meant for the moment you inherit an
+unfamiliar repository and need a map before you start reading files.
 
-Install code LLAMA3-8B
-```
-./llama-server --port 9090 --hf-repo hugging-quants/Llama-3.2-3B-Instruct-Q4_K_M-GGUF --hf-file llama-3.2-3b-instruct-q4_k_m.gguf -c
- 4096 --n-gpu-layers 28
-```
+Written in Rust; serves the report over HTTP so you can read it in a browser
+rather than in a terminal.
 
-Custom Configuration
-In your Rust project, configure the following constants for folder analysis and code summary generation:
-```
-main.rs
-```rust
-// Server port configuration
-const SERVER_PORT: u16 = 3030;
+## How it works
 
-// List of code file extensions to filter
-const CODE_FILE_EXTENSIONS: &[&str] = &[
-    "rs", "py", "js", "ts", "java", "cpp", "c", "go", "sh", "rb", "bat", "cs", "resx", "h", "md",
-];
+1. Lists the directories under the target folder.
+2. Asks the model which of them are likely to hold **hand-written source** (as
+   opposed to vendored dependencies, build output or assets), and keeps those.
+3. Walks the kept directories for known source extensions:
+   `rs, py, js, ts, java, cpp, c, go, sh, rb, bat, cs, resx, h, md`
+4. Summarises each file concurrently (`futures::join_all`).
+5. Serves the assembled report with `warp` on port `3030`.
 
-// GPT prompt for folder analysis (includes placeholders {})
-const FOLDER_ANALYSIS_PROMPT: &str = "Based on the following folder names, identify potential source code directories written by the user. Return a JSON structure with the key 'analysis_key' and a list of directories that match the criteria:\n{folders}\n{extra_folders}";
+Step 2 is the part that matters — filtering before summarising is what keeps a
+large repository from turning into thousands of pointless API calls.
 
-// GPT prompt for code summarization
-const FILE_SUMMARY_PROMPT: &str = "Generate a concise summary for the following code (no more than 100 words). Use professional software engineering terminology and retain the original variable names for easy analysis. Please describe in Traditional Chinese:\n{}";
+## Two backends
 
-// Project directory path
-const PROJECT_PATH: &str = "/root/Ghost";
-Running the Project
-To execute the project, use the following command:
-```
+| File | Backend |
+|---|---|
+| `src/main.rs` | OpenAI API |
+| `src/main_llama3.rs` | local Llama 3 |
+
+## Setup
 
 ```bash
-cargo run 
+cp .env.example .env   # then edit
 ```
-This will start the folder analysis process, leveraging the OpenAI API for generating summaries and insights.
 
-Demo Output
-Here are example outputs from running the analysis:
+`.env`:
 
+```
+OPENAI_API_KEY=sk-...
+```
 
-![image](https://github.com/user-attachments/assets/bf3f2433-0743-486c-a3ba-42d738fcd0cb)
-![image](https://github.com/user-attachments/assets/f6018cf8-442d-4495-b7d1-96e7d4bfceb4)
+The committed `.env` holds a `----` placeholder, not a real key.
 
-# demo
-![image](https://github.com/user-attachments/assets/f6fa25f6-dedc-4e5f-b050-7810bd29af4b)
-![image](https://github.com/user-attachments/assets/14f93f15-af8c-49d5-b602-e0e171950e77)
+## Run
 
+```bash
+cargo run --release
+# then open http://127.0.0.1:3030
+```
 
+## Configuration
 
-By following these instructions, you can run the project and analyze folder structures with automated code summaries.
+The tunables are constants at the top of `src/main.rs`:
+
+- `SERVER_PORT` — HTTP port (default `3030`)
+- `CODE_FILE_EXTENSIONS` — which files count as source
+- `FOLDER_ANALYSIS_PROMPT` — the directory-filtering prompt
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
